@@ -13,6 +13,7 @@
 #include<mutex>
 #include<unordered_map>
 #include<memory>
+#include<utility>
 #include<cmath>
 #include<vector>
 using namespace std;
@@ -25,7 +26,7 @@ class Kway{
 
 		void PutData(T key, U value){return KImpl_->PutData(key, value);};
 
-		void* GetData(T key){return KImpl_->GetData(key);};
+		void*  GetData(T key){return KImpl_->GetData(key);};
 
 		bool remove(T key){return KImpl_->remove(key);};
 
@@ -43,7 +44,6 @@ class Kway{
 
 		int num_lines(){return KImpl_->num_lines();};
 
-	private:
 		struct KImpl;
 		unique_ptr<KImpl> KImpl_;
 
@@ -55,8 +55,8 @@ Kway<T, U>::Kway(int max_size, int k) : KImpl_(new KImpl(max_size, k)) {}
 
 template<typename T, typename U>
 class Kway<T, U>::KImpl{
-	//actual implementation
 	public:
+		//actual implementation
 		KImpl(int max_size, int k) : max_size_(max_size), lines_(k), size_(0), hit_count_(0), miss_count_(0) {
 			num_sets_ = ceil(max_size / (k * sizeof(U)));
 			for (int i = 0; i < num_sets_; i++) {
@@ -99,19 +99,30 @@ class Kway<T, U>::KImpl{
 		int size(){
 			int sum=0;
 			for(Set* s: sets){
-				sum+= s->set_size();
+				sum+= s->curr_size();
 			}
 			return sum;
 		}; // maybe call size for all sets and return their sum.
 
-		int hit_count(){return hit_count_;};
+		int hit_count(){
+			hit_count_ = 0;
+			for(Set* s: sets){
+				hit_count_+=s->set_hit_count();
+			}
+			return hit_count_;
+		};
 
-		int miss_count(){return miss_count_;};
+		int miss_count(){
+			miss_count_ = 0;
+			for(Set* s: sets){
+				miss_count_+=s->set_miss_count();
+			}
+			return miss_count_;
+		};
 
 		int num_sets(){return num_sets_;};
 
-		int num_lines(){return max_size_;};
-
+		int num_lines(){return lines_;};
 	private:
 		struct Set;
 
@@ -123,148 +134,173 @@ class Kway<T, U>::KImpl{
 		int miss_count_;
 
 		vector<Set*> sets;
-		unordered_map<T, Set*> set_hashmap_;
 };
 
 
 template<typename T, typename U>
 class Kway<T, U>::KImpl::Set{
-	struct Node{
-		Node (U data): data(data), prev(NULL), next(NULL){}
+	public:
+		struct Node;
+		using map_type = std::unordered_map<T, Node*>;
 
-		U data;
-		Node* prev;
-		Node* next;
-		typename unordered_map<T, Set*>::iterator map_it; //compiler told to add typename but idk why this works
-	};
-	Set(int max_size): set_max_size_(max_size), size_(0), head_(NULL), tail_(NULL), hit_count_(0), miss_count_(0){
-	};
-	void PutData(T key, U value){
-		lock_guard<mutex> lock(mutex_);
+		struct Node{
+			Node (U data): data(data), prev(NULL), next(NULL){}
 
-		Node* newNode = new Node(value);
+			U data;
+			Node* prev;
+			Node* next;
+			typename map_type::iterator map_it; //compiler told to add typename but idk why this works
+		};
+		Set(int max_size): set_max_size_(max_size), size_(0), head_(NULL), tail_(NULL), hit_count_(0), miss_count_(0){
+		};
+		void PutData(T key, U value){
+			lock_guard<mutex> lock(mutex_);
 
-		auto it = set_hashmap_.insert(make_pair(key, newNode));
+			Node* newNode = new Node(value);
 
-		if(!it.second){
-			delete it.first->second;
-			it.first->second = newNode;
-			newNode->map_it = it;
-			move_front(newNode);
-			return;
-		}
+			auto it = set_hashmap_.insert(typename map_type::value_type(key, newNode));
 
-		if(head_ == NULL){
-			head_ = tail_ = newNode;
-		}else{
-			head_->prev = newNode;
-			newNode->next = head_;
-			head_ = newNode;
-		}
-		size_++;
-		if(size_ > set_max_size_){
-			tail_ = tail_->prev;
-			set_hashmap_.erase(tail_->next->map_it);
-			delete tail_->next;
-			tail_->next = NULL;
-			size--;
-		}
-	};
+			if(!it.second){
+				delete it.first->second;
+				it.first->second = newNode;
+				move_front(newNode);
+				return;
+			}
+			newNode->map_it = it.first;
 
-	void* GetData(T key){
-		lock_guard<mutex> lock(mutex_);
+			if(head_ == NULL){
+				head_ = tail_ = newNode;
+			}else{
+				head_->prev = newNode;
+				newNode->next = head_;
+				head_ = newNode;
+			}
+			size_++;
+			if(size_ > set_max_size_){
+				tail_ = tail_->prev;
+				set_hashmap_.erase(tail_->next->map_it);
+				delete tail_->next;
+				tail_->next = NULL;
+				size_--;
+			}
+		};
 
-		if(set_hashmap_.find(key) == set_hashmap_.end()){
-			miss_count_++;
+		void* GetData(T key){
+			lock_guard<mutex> lock(mutex_);
+
+			if(set_hashmap_.find(key) == set_hashmap_.end()){
+				miss_count_++;
+				return nullptr;
+			}else{
+				hit_count_++;
+				Node* temp_node = set_hashmap_.at(key);
+				move_front(temp_node);
+
+				return &(temp_node->data);
+			}
 			return nullptr;
-		}else{
-			hit_count_++;
-			Node* temp_node = set_hashmap_.at(key);
-			moveFront(temp_node);
+		};
 
-			return &(temp_node->data);
-		}
-		return nullptr;
-	};
+		bool remove(T key){
+			auto it = set_hashmap_.find(key);
 
-	bool remove(T key){
-		lock_guard<mutex> lock(mutex_);
+			if (it == set_hashmap_.end())
+				return false;
 
-		if(set_hashmap_.find(key) == set_hashmap_.end()){
-			return false;
-		}
-		size_--;
-		Node* temp_node = set_hashmap_.at(key);
+			Node* node = it->second;
 
-		if(head_ == temp_node){
-			head_ = temp_node->next;
-		}
-		if(tail_ == temp_node){
-			tail_ = temp_node->prev;
-		}
-		if(temp_node->next){
-			temp_node->next->prev = temp_node->prev;
-		}if(temp_node->prev){
-			temp_node->prev->next = temp_node->next;
-		}
-		set_hashmap_.erase(temp_node->map_it);
-		delete temp_node;
-		return true;
-	};
+			move_front(node);
 
-	void evict_set(){
-		lock_guard<mutex> lock(mutex_);
 
-		size_ = 0;
-		head_ = tail_ = NULL;
-		Node* temp_node = head_, ptr;
-		while(temp_node){
-			ptr = temp_node;
-			set_hashmap_.erase(ptr->map_it);
-			temp_node = temp_node->next;
-			delete ptr;
-		}
+			head_ = head_->next;
 
-	};
+			if (head_ != NULL)
+				head_->prev = NULL;
 
-	int curr_size(){return size_;};
+			set_hashmap_.erase(node->map_it);
+			delete node;
 
-	int set_size() {return set_max_size_;};
+			size_--;
 
-	int set_hit_count(){return hit_count_;};
+			return true;
+			//if(set_hashmap_.find(key) == set_hashmap_.end()){
+			//	return false;
+			//}
+			//size_--;
+			//Node* temp_node = set_hashmap_.at(key);
 
-	int set_miss_count(){return miss_count_;};
+			//if(head_ == temp_node){
+			//	head_ = temp_node->next;
+			//}
+			//if(tail_ == temp_node){
+			//	tail_ = temp_node->prev;
+			//}
+			//if(temp_node->next){
+			//	temp_node->next->prev = temp_node->prev;
+			//}if(temp_node->prev){
+			//	temp_node->prev->next = temp_node->next;
+			//}
+			//set_hashmap_.erase(temp_node->map_it);
+			//delete temp_node;
+			//return true;
+		};
 
-	void move_front(Node* node){
-		if(node == head_){
-			return;
-		}
+		void evict_set(){
+			lock_guard<mutex> lock(mutex_);
 
-		if(node->next){
-			node->next->prev = node->prev;
-		}else{
-			tail_ = tail_->prev; 
-		}
+			size_ = 0;
+			head_ = tail_ = NULL;
+			Node* temp_node = head_, ptr;
+			while(temp_node){
+				ptr = temp_node;
+				set_hashmap_.erase(ptr->map_it);
+				temp_node = temp_node->next;
+				delete ptr;
+			}
 
-		node->prev->next = node->next;
-		node->next = head_;
-		node->prev = NULL;
-		head_->prev = node;
-		head_ = node;
-	};
+		};
 
-	unordered_map<T, Node*> set_hashmap_;
-	Node* head_;
-	Node* tail_;
+		int curr_size(){return size_;};
 
-	int size_;
-	int set_max_size_;
+		int set_size() {return set_max_size_;};
 
-	int hit_count_;
-	int miss_count_;
+		int set_hit_count(){return hit_count_;};
 
-	mutex mutex_;
+		int set_miss_count(){return miss_count_;};
+
+		void move_front(Node* node){
+			if(node == head_){
+				return;
+			}
+
+			if(node->next){
+				node->next->prev = node->prev;
+			}else{
+				tail_ = tail_->prev; 
+			}
+
+			node->prev->next = node->next;
+			node->next = head_;
+			node->prev = NULL;
+			head_->prev = node;
+			head_ = node;
+		};
+
+	private:
+		unordered_map<T, Node*> set_hashmap_;
+		Node* head_;
+		Node* tail_;
+
+		int size_;
+		int set_max_size_;
+
+		int hit_count_;
+		int miss_count_;
+
+		mutex mutex_;
 };
+
+
 
 // template<typename T, typename U>
 // class KWay<T, U>::KImpl : put()
