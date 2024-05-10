@@ -1,20 +1,31 @@
+//Strong references from  https://github.com/lamerman/cpp-lru-cache, https://github.com/ekg/lru_cache
+
+// Assumptions
+// 1. Assume that we are developing this cache to store integers or chars only.
+// You can choose any data type to store this.
+// 2. Assume that the data is always available in Main Memory.
+// 3. Cache Access Time = 10 ns and Main Memory access time = 1 microsec-
+// ond.
+
 // TODO:
+// line 237 try remove with commented out code (commented cuz i thought segmentatin fault was cuz of that)
 // Add time variables (10ns access time and miss_penalty, etc) 
 // Clean up implementation
-// line 133
-// Theres bound to be errors since I havent tested this once also.
-
+//
 
 #ifndef K_WAY_CACHE
 #define K_WAY_CACHE
-
+#define CAT 10
+// CAT- Cache Access time (10 nanoseconds)
+#define MMAT 1000
+// MMAT- Main Memory Access Time (1 microsecond = 1000 nanoseconds)
 
 #include<iostream>
 #include<mutex>
-#include<unordered_map>
 #include<memory>
 #include<utility>
 #include<cmath>
+#include<unordered_map>
 #include<vector>
 using namespace std;
 
@@ -40,6 +51,8 @@ class Kway{
 
 		int miss_count(){return KImpl_->miss_count();};
 
+		double AMAT(){return KImpl_->AMAT();};
+
 		int num_sets(){return KImpl_->num_sets();};
 
 		int num_lines(){return KImpl_->num_lines();};
@@ -47,8 +60,8 @@ class Kway{
 		struct KImpl;
 		unique_ptr<KImpl> KImpl_;
 
-		Kway(const Kway&); // new object being created with contents of another object
-		void operator=(const Kway&);
+//		Kway(const Kway&); // new object being created with contents of another object
+//		void operator=(const Kway&);
 };
 template<typename T, typename U>
 Kway<T, U>::Kway(int max_size, int k) : KImpl_(new KImpl(max_size, k)) {}
@@ -119,7 +132,9 @@ class Kway<T, U>::KImpl{
 			}
 			return miss_count_;
 		};
-
+		double AMAT(){
+			return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
+		};
 		int num_sets(){return num_sets_;};
 
 		int num_lines(){return lines_;};
