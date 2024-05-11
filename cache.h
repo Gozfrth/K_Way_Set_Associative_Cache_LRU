@@ -8,8 +8,11 @@
 // ond.
 
 // TODO:
+// WHY DO I GET SEGMENTATION FAULT WHEN I CALL move_front() !???
+// ---Figure out why the display function seems bugged (Head isnt always the first element?) The cache itself works, but display seems bugged.
+// ---add display function to display all data in a cache set (and the whole cache itself)
 // line 237 try remove with commented out code (commented cuz i thought segmentatin fault was cuz of that)
-// Add time variables (10ns access time and miss_penalty, etc) 
+// ---Add discrete time variables (10ns access time and miss_penalty, etc) 
 // Clean up implementation
 //
 
@@ -51,17 +54,24 @@ class Kway{
 
 		int miss_count(){return KImpl_->miss_count();};
 
+		double miss_ratio(){return KImpl_->miss_ratio();};
+
 		double AMAT(){return KImpl_->AMAT();};
+
+		double total_access_time(){return KImpl_->total_access_time();};
+
+		void display_all(){return KImpl_->display_all();};
 
 		int num_sets(){return KImpl_->num_sets();};
 
 		int num_lines(){return KImpl_->num_lines();};
 
+	private:
 		struct KImpl;
 		unique_ptr<KImpl> KImpl_;
 
-//		Kway(const Kway&); // new object being created with contents of another object
-//		void operator=(const Kway&);
+		//		Kway(const Kway&); // new object being created with contents of another object
+		//		void operator=(const Kway&);
 };
 template<typename T, typename U>
 Kway<T, U>::Kway(int max_size, int k) : KImpl_(new KImpl(max_size, k)) {}
@@ -132,15 +142,39 @@ class Kway<T, U>::KImpl{
 			}
 			return miss_count_;
 		};
-		double AMAT(){
-			return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
+
+		double miss_ratio(){
+			miss_ratio_ = (double)(miss_count()/hit_count());
+			return miss_ratio_;
 		};
+
+		double AMAT(){
+			return (CAT + miss_ratio()*MMAT)/1e9;
+			//return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
+
+		};
+
+		double total_access_time(){
+			return (double)(hit_count() * CAT + miss_count()*MMAT)/1e9;
+		};
+
+		void display_all(){
+			cout<<"\n\nHEAD ----> TAIL";
+			for(int i=0; i<num_sets_; i++){
+				cout<<"\n------SET-"<<i+1<<"------\n";
+				sets[i]->display_set();
+			}
+			cout<<"\n";
+			return;
+		};
+
 		int num_sets(){return num_sets_;};
 
 		int num_lines(){return lines_;};
 	private:
 		struct Set;
 
+		double miss_ratio_; //miss_count- / hit_count_
 		int max_size_;
 		int size_;
 		int lines_;
@@ -168,7 +202,11 @@ class Kway<T, U>::KImpl::Set{
 		};
 		Set(int max_size): set_max_size_(max_size), size_(0), head_(NULL), tail_(NULL), hit_count_(0), miss_count_(0){
 		};
+
+
 		void PutData(T key, U value){
+			//update AMAT at the end of each access. Could be more efficient if calculated later but requirements specify to do so.
+
 			lock_guard<mutex> lock(mutex_);
 
 			Node* newNode = new Node(value);
@@ -176,13 +214,19 @@ class Kway<T, U>::KImpl::Set{
 			auto it = set_hashmap_.insert(typename map_type::value_type(key, newNode));
 
 			if(!it.second){
+				cout<<typeid(it.first->second).name()<<endl;
 				delete it.first->second;
+				cout<<"1\n";
 				it.first->second = newNode;
-				move_front(newNode);
+
+				cout<<"2\n";
+				cout<<"3\n";
+				move_front(it.first->second);
+				cout<<"ok";
 				return;
 			}
-			newNode->map_it = it.first;
 
+			newNode->map_it = it.first;
 			if(head_ == NULL){
 				head_ = tail_ = newNode;
 			}else{
@@ -190,7 +234,7 @@ class Kway<T, U>::KImpl::Set{
 				newNode->next = head_;
 				head_ = newNode;
 			}
-			size_++;
+			++size_;
 			if(size_ > set_max_size_){
 				tail_ = tail_->prev;
 				set_hashmap_.erase(tail_->next->map_it);
@@ -209,7 +253,7 @@ class Kway<T, U>::KImpl::Set{
 			}else{
 				hit_count_++;
 				Node* temp_node = set_hashmap_.at(key);
-				move_front(temp_node);
+				move_front(temp_node);		
 
 				return &(temp_node->data);
 			}
@@ -284,21 +328,39 @@ class Kway<T, U>::KImpl::Set{
 		int set_miss_count(){return miss_count_;};
 
 		void move_front(Node* node){
-			if(node == head_){
+			cout<<"ok";
+			if(head_ == node){
+				cout<<"ok";
 				return;
 			}
-
-			if(node->next){
+			head_->prev = node;
+			if(node!= tail_){
 				node->next->prev = node->prev;
 			}else{
 				tail_ = tail_->prev; 
 			}
 
+			cout<<"1\n";
 			node->prev->next = node->next;
-			node->next = head_;
+			cout<<"2\n";
 			node->prev = NULL;
-			head_->prev = node;
+			cout<<"3\n";
+			node->next = head_;
+			cout<<"4\n";
 			head_ = node;
+			return;
+		};
+
+		void display_set(){
+			Node* temp = head_;
+			if(temp == NULL){
+				cout<<" Empty ";
+			}
+			while(temp != NULL){
+				cout<<" "<<temp->data;
+				temp = temp->next;
+			}
+			return;
 		};
 
 	private:
