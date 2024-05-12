@@ -84,8 +84,13 @@ class Kway<T, U>::KImpl{
 			num_sets_ = ceil(max_size / (k * sizeof(U)));
 			for (int i = 0; i < num_sets_; i++) {
 				sets.push_back(new Set(lines_));
+			};
+			int small_lines = ((max_size/sizeof(U)) %k);
+			if(small_lines > 0){
+				num_sets_++;
+				sets.push_back(new Set(small_lines));
 			}
-		}
+		};
 
 		void PutData(T key, U value){
 			size_t hash_value = hash<T>{}(key);
@@ -149,8 +154,11 @@ class Kway<T, U>::KImpl{
 		};
 
 		double AMAT(){
-			return (CAT + miss_ratio()*MMAT)/1e9;
-			//return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
+			if(hit_count()!= 0)
+				return (CAT + miss_ratio()*MMAT)/1e9;
+			else 
+
+				return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
 
 		};
 
@@ -203,6 +211,27 @@ class Kway<T, U>::KImpl::Set{
 		Set(int max_size): set_max_size_(max_size), size_(0), head_(NULL), tail_(NULL), hit_count_(0), miss_count_(0){
 		};
 
+		void move_front(Node* node){
+			if(head_ == node){
+				return;
+			}
+			head_->prev = node;
+			if(node!= tail_){
+				node->next->prev = node->prev;
+			}else{
+				tail_ = tail_->prev; 
+			}
+
+			node->prev->next = node->next;
+			node->prev = NULL;
+			node->next = head_;
+			head_ = node;
+			return;
+		};
+
+		void test_printNode(Node* node){
+			cout<<node->data;
+		};
 
 		void PutData(T key, U value){
 			//update AMAT at the end of each access. Could be more efficient if calculated later but requirements specify to do so.
@@ -214,15 +243,10 @@ class Kway<T, U>::KImpl::Set{
 			auto it = set_hashmap_.insert(typename map_type::value_type(key, newNode));
 
 			if(!it.second){
-				cout<<typeid(it.first->second).name()<<endl;
-				delete it.first->second;
-				cout<<"1\n";
-				it.first->second = newNode;
+				newNode = it.first->second;
 
-				cout<<"2\n";
-				cout<<"3\n";
-				move_front(it.first->second);
-				cout<<"ok";
+				cout<<newNode->data;
+				move_front(newNode);
 				return;
 			}
 
@@ -327,29 +351,6 @@ class Kway<T, U>::KImpl::Set{
 
 		int set_miss_count(){return miss_count_;};
 
-		void move_front(Node* node){
-			cout<<"ok";
-			if(head_ == node){
-				cout<<"ok";
-				return;
-			}
-			head_->prev = node;
-			if(node!= tail_){
-				node->next->prev = node->prev;
-			}else{
-				tail_ = tail_->prev; 
-			}
-
-			cout<<"1\n";
-			node->prev->next = node->next;
-			cout<<"2\n";
-			node->prev = NULL;
-			cout<<"3\n";
-			node->next = head_;
-			cout<<"4\n";
-			head_ = node;
-			return;
-		};
 
 		void display_set(){
 			Node* temp = head_;
