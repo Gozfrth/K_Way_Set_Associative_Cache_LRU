@@ -21,13 +21,14 @@
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <ctime>
+#include <thread>
 #include "cache.h"
 
 using namespace std;
 
 class CacheTest : public testing::Test{
 	protected:
-		CacheTest() : kway_cache_1(128, 32), kway_cache_2(128, 1), kway_cache_3(4, 1), kway_cache_4(128, 3){
+		CacheTest() : kway_cache_1(128, 32), kway_cache_2(128, 1), kway_cache_3(4, 1), kway_cache_4(128, 3), kway_cache_5(128, 3){
 		}
 
 		~CacheTest() override {
@@ -44,6 +45,7 @@ class CacheTest : public testing::Test{
 		Kway<int, int> kway_cache_2; //direct mappoing
 		Kway<int, int> kway_cache_3; //cache size 1
 		Kway<int, int> kway_cache_4; //3 way setassoc
+		Kway<int, int> kway_cache_5;
 };
 
 // TEST_1
@@ -120,9 +122,35 @@ TEST_F(CacheTest, Structure){
 	ASSERT_EQ(nullptr, kway_cache_2.GetData(1)); //1 should be evicted
 };
 
+
+
+void ThreadTesterFunction(Kway<int, int>* cache){
+	int i;
+	for(i=0; i<32; i++){
+		cache->PutData(i, i);
+	}
+	for(i=0; i<32; i++){
+		cache->GetData(i);
+	}
+};
+
 // TEST_4
 TEST_F(CacheTest, ThreadSafety){
+	const int num_threads = 4;
+	int i;
+
+	thread threads[num_threads]; //arraty of thread objects
 	
+	for(i=0; i<num_threads; i++){
+		threads[i] = thread(ThreadTesterFunction, &kway_cache_5);
+	}
+
+	for(int i=0; i<num_threads; i++){
+		threads[i].join();
+	}
+
+	ASSERT_EQ(128, kway_cache_5.hit_count());
+	ASSERT_EQ(0, kway_cache_5.miss_count());
 	//THREAD SAFETY
 }
 
