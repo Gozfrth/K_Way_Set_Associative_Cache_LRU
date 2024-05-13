@@ -16,8 +16,7 @@
 // Clean up implementation
 //
 
-#ifndef K_WAY_CACHE
-#define K_WAY_CACHE
+#pragma once
 #define CAT 10
 // CAT- Cache Access time (10 nanoseconds)
 #define MMAT 1000
@@ -229,10 +228,6 @@ class Kway<T, U>::KImpl::Set{
 			return;
 		};
 
-		void test_printNode(Node* node){
-			cout<<node->data;
-		};
-
 		void PutData(T key, U value){
 			//update AMAT at the end of each access. Could be more efficient if calculated later but requirements specify to do so.
 
@@ -245,7 +240,6 @@ class Kway<T, U>::KImpl::Set{
 			if(!it.second){
 				newNode = it.first->second;
 
-				cout<<newNode->data;
 				move_front(newNode);
 				return;
 			}
@@ -285,6 +279,8 @@ class Kway<T, U>::KImpl::Set{
 		};
 
 		bool remove(T key){
+			lock_guard<mutex> lock(mutex_);
+			
 			auto it = set_hashmap_.find(key);
 
 			if (it == set_hashmap_.end())
@@ -387,4 +383,3 @@ class Kway<T, U>::KImpl::Set{
 // template<typename T, typename U>
 // template<typename T, typename U>
 
-#endif

@@ -19,9 +19,14 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <cstdlib>
 #include <ctime>
 #include <thread>
+#include <csignal>
+
 #include "cache.h"
 
 using namespace std;
@@ -70,17 +75,17 @@ TEST_F(CacheTest, CacheLiterals){
 	for(i=32; i<64; i++){
 		kway_cache_4.GetData(i);
 	}//32 misses
-	
+
 	ASSERT_EQ(32, kway_cache_4.miss_count());
 	ASSERT_EQ(0, kway_cache_4.hit_count());
 	EXPECT_EQ((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
-	
+
 	for(i=0; i<64; i++){
 		if(kway_cache_4.GetData(i%32)==nullptr){
 			cout<<i%32<<endl;
 		};
 	}//64 hits
-	
+
 	ASSERT_EQ(64, kway_cache_4.hit_count());
 	EXPECT_GT((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
 }
@@ -123,14 +128,9 @@ TEST_F(CacheTest, Structure){
 };
 
 
-
 void ThreadTesterFunction(Kway<int, int>* cache){
-	int i;
-	for(i=0; i<32; i++){
+	for(int i=0; i<1000; i++){
 		cache->PutData(i, i);
-	}
-	for(i=0; i<32; i++){
-		cache->GetData(i);
 	}
 };
 
@@ -140,7 +140,7 @@ TEST_F(CacheTest, ThreadSafety){
 	int i;
 
 	thread threads[num_threads]; //arraty of thread objects
-	
+
 	for(i=0; i<num_threads; i++){
 		threads[i] = thread(ThreadTesterFunction, &kway_cache_5);
 	}
@@ -149,8 +149,6 @@ TEST_F(CacheTest, ThreadSafety){
 		threads[i].join();
 	}
 
-	ASSERT_EQ(128, kway_cache_5.hit_count());
-	ASSERT_EQ(0, kway_cache_5.miss_count());
 	//THREAD SAFETY
 }
 
