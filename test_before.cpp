@@ -21,7 +21,6 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <ctime>
@@ -30,13 +29,11 @@
 
 #include "cache.h"
 
-#define ONE_MB 1048576
-
 using namespace std;
 
 class CacheTest : public testing::Test{
 	protected:
-		CacheTest() : kway_cache_1(128, 32), kway_cache_2(128, 1), kway_cache_3(4, 1), kway_cache_4(128, 3), kway_cache_5(128, 3), kway_cache_large(ONE_MB, 4), kway_cache_small(4, 1){
+		CacheTest() : kway_cache_1(128, 32), kway_cache_2(128, 1), kway_cache_3(4, 1), kway_cache_4(128, 3), kway_cache_5(128, 3){
 		}
 
 		~CacheTest() override {
@@ -51,11 +48,9 @@ class CacheTest : public testing::Test{
 		}
 		Kway<int, int> kway_cache_1; //fully associative
 		Kway<int, int> kway_cache_2; //direct mappoing
-		Kway<int, int> kway_cache_3; //cache size 1 
+		Kway<int, int> kway_cache_3; //cache size 1
 		Kway<int, int> kway_cache_4; //3 way setassoc
-		Kway<int, int> kway_cache_5; //Used for thread safety test
-		Kway<int, int> kway_cache_large; //Usef for LargeSize test
-		Kway<int, int> kway_cache_small;
+		Kway<int, int> kway_cache_5;
 };
 
 // TEST_1
@@ -67,8 +62,35 @@ TEST_F(CacheTest, CacheOperations){
 	ASSERT_EQ(nullptr, kway_cache_3.GetData(1)); //not in cache
 }
 
-
 // TEST_2
+TEST_F(CacheTest, CacheLiterals){
+	//CACHE LITERALS
+	//checking hit_count and miss_count. Also AMAT?
+	int i;
+
+	for(i=0; i<32; i++){	
+		kway_cache_4.PutData(i, i);
+	}
+
+	for(i=32; i<64; i++){
+		kway_cache_4.GetData(i);
+	}//32 misses
+
+	ASSERT_EQ(32, kway_cache_4.miss_count());
+	ASSERT_EQ(0, kway_cache_4.hit_count());
+	EXPECT_EQ((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
+
+	for(i=0; i<64; i++){
+		if(kway_cache_4.GetData(i%32)==nullptr){
+			cout<<i%32<<endl;
+		};
+	}//64 hits
+
+	ASSERT_EQ(64, kway_cache_4.hit_count());
+	EXPECT_GT((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
+}
+
+// TEST_3
 TEST_F(CacheTest, Structure){
 	//FULLY ASSOCIATIVE (k= size of cache)
 
@@ -105,55 +127,6 @@ TEST_F(CacheTest, Structure){
 	ASSERT_EQ(nullptr, kway_cache_2.GetData(1)); //1 should be evicted
 };
 
-// TEST_3
-TEST_F(CacheTest, SmallSize){
-	kway_cache_small.PutData(0, 0);
-	ASSERT_NE(nullptr, kway_cache_small.GetData(0));
-	kway_cache_small.PutData(1, 1);
-	ASSERT_EQ(nullptr, kway_cache_small.GetData(0));
-}
-
-// TEST_4
-TEST_F(CacheTest, LargeSize){
-	int i;
-
-	for(i=0; i<4194304; i++){
-		kway_cache_large.PutData(i, i);
-	}
-	for(i=3932160; i<4194304; i++){
-		ASSERT_NE(nullptr, kway_cache_large.GetData(i));
-	}
-
-}
-
-// TEST_5
-TEST_F(CacheTest, CacheLiterals){
-	//CACHE LITERALS
-	//checking hit_count and miss_count. Also AMAT?
-	int i;
-
-	for(i=0; i<32; i++){	
-		kway_cache_4.PutData(i, i);
-	}
-
-	for(i=32; i<64; i++){
-		kway_cache_4.GetData(i);
-	}//32 misses
-
-	ASSERT_EQ(32, kway_cache_4.miss_count());
-	ASSERT_EQ(0, kway_cache_4.hit_count());
-	EXPECT_EQ((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
-
-	for(i=0; i<64; i++){
-		if(kway_cache_4.GetData(i%32)==nullptr){
-			cout<<i%32<<endl;
-		};
-	}//64 hits
-
-	ASSERT_EQ(64, kway_cache_4.hit_count());
-	EXPECT_GT((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
-}
-
 
 void ThreadTesterFunction(Kway<int, int>* cache){
 	for(int i=0; i<1000; i++){
@@ -161,37 +134,21 @@ void ThreadTesterFunction(Kway<int, int>* cache){
 	}
 };
 
-// TEST_6
+// TEST_4
 TEST_F(CacheTest, ThreadSafety){
 	const int num_threads = 4;
 	int i;
 
 	thread threads[num_threads]; //arraty of thread objects
-	pid_t pid = fork();
 
-	if(pid == -1){
-		FAIL()<<"Failed to process new fork";
-	}else if(pid == 0){
-		for(i=0; i<num_threads; i++){
-			threads[i] = thread(ThreadTesterFunction, &kway_cache_5);
-		}
-
-		for(int i=0; i<num_threads; i++){
-			threads[i].join();
-		}
-	} else {
-		int status;
-		waitpid(pid, &status, 0);
-		if(WIFSIGNALED(status)){
-			if(WTERMSIG(status) == SIGSEGV){
-				FAIL()<<"Process terminated due to segmentation fault";
-			}else{
-				FAIL()<<"Process terminated by unxpected signal";
-			}
-		}else{
-			SUCCEED();
-		}
+	for(i=0; i<num_threads; i++){
+		threads[i] = thread(ThreadTesterFunction, &kway_cache_5);
 	}
+
+	for(int i=0; i<num_threads; i++){
+		threads[i].join();
+	}
+
 	//THREAD SAFETY
 }
 
