@@ -28,18 +28,14 @@ using namespace std;
 
 int main(){
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
-	Kway<int, int> kway_cache(128, 3);
+	Kway<int, int> kway_cache(1024, 4);
 
 	//PUTTING DATA
 	cout<<"----PUTTING DATA----\n";
 
-	for(int i=0; i<37; i++){
-		kway_cache.display_all();
+	for(int i=0; i<4098; i++){
 		kway_cache.PutData(i, i);
-		cout<<"\n\n\n";
 	}		
-	kway_cache.PutData(20, 20);
-	kway_cache.display_all();
 
 	cout<<"Current size of cache (bytes) :"<<kway_cache.size()<<""<<endl;	
 	cout<<"Number of lines in each Set :"<<kway_cache.num_lines()<<""<<endl;
@@ -49,25 +45,17 @@ int main(){
 
 	//GETTING DATA
 	cout<<"\n\n----GETTING DATA----\n";
-	for(int i=0; i<10; i++){
+	for(int i=0; i<4098; i++){
 		if(auto x = kway_cache.GetData(i)){
-			cout<<*(int*)x<<endl;
 		}
 	}
 
 	kway_cache.display_all();
 
-	//cout<<kway_cache.GetData(1)<<endl;
-	cout<<"Removing key 1: "<<kway_cache.remove(1)<<endl;
 	cout<<"Current Size: "<<kway_cache.size()<<" lines x "<<sizeof(int)<<" bytes"<<endl;	
 
-	if(auto x = kway_cache.GetData(1)){
-		cout<<*(int*)x<<endl;
-	};
 
-	kway_cache.remove(2);
-	kway_cache.remove(3);
-	cout<<"AVERAGE MEMORY ACCESS TIME: "<<kway_cache.AMAT()<<"seconds"<<endl;
+	cout<<"AVERAGE MEMORY ACCESS TIME: "<<kway_cache.AMAT()<<" nanoseconds"<<endl;
 
 	return 1;
 }

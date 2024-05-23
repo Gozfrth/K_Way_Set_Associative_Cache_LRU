@@ -28,24 +28,22 @@
 #include<utility>
 #include<cmath>
 #include<unordered_map>
+#include<cstring>
 #include<vector>
+
+#include <SFML/Graphics.hpp>
+
 using namespace std;
 
-template<typename T, typename U>
+template<typename T>
 class Kway{
 	public:
 		//constructor
-		Kway(int max_size, int k); 
+		Kway(int max_size, int k, int block_size, bool graph = false); 
 
-		void PutData(T key, U value){return KImpl_->PutData(key, value);};
+		void PutData(T* key){return KImpl_->PutData(key);};
 
-		void*  GetData(T key){return KImpl_->GetData(key);};
-
-		bool remove(T key){return KImpl_->remove(key);};
-
-		void evict_set(int set_ind){return KImpl_->evict_set(set_ind);};
-
-		void evict_all(){return KImpl_->evict_all();};
+		void* GetData(T* key){return KImpl_->GetData(key);};
 
 		int size(){return KImpl_->size();}; // maybe call size for all sets and return their sum.
 
@@ -56,8 +54,6 @@ class Kway{
 		double miss_ratio(){return KImpl_->miss_ratio();};
 
 		double AMAT(){return KImpl_->AMAT();};
-
-		double total_access_time(){return KImpl_->total_access_time();};
 
 		void display_all(){return KImpl_->display_all();};
 
@@ -72,56 +68,40 @@ class Kway{
 		//		Kway(const Kway&); // new object being created with contents of another object
 		//		void operator=(const Kway&);
 };
-template<typename T, typename U>
-Kway<T, U>::Kway(int max_size, int k) : KImpl_(new KImpl(max_size, k)) {}
+template<typename T>
+Kway<T>::Kway(int max_size, int k, int block_size, bool graph) : KImpl_(new KImpl(max_size, k, block_size, graph)) {}
 
-template<typename T, typename U>
-class Kway<T, U>::KImpl{
+template<typename T>
+class Kway<T>::KImpl{
 	public:
 		//actual implementation
-		KImpl(int max_size, int k) : max_size_(max_size), lines_(k), size_(0), hit_count_(0), miss_count_(0) {
-			num_sets_ = ceil(max_size / (k * sizeof(U)));
+		KImpl(int max_size, int k, int block_size, bool graph = false) : max_size_(max_size), lines_(k), size_(0), hit_count_(0), miss_count_(0), block_size_(block_size), display_graph_(graph) {
+			num_sets_ = ceil(max_size / (k * sizeof(T)*block_size_));
 			for (int i = 0; i < num_sets_; i++) {
-				sets.push_back(new Set(lines_));
+				sets.push_back(new Set(lines_, block_size_));
 			};
-			int small_lines = ((max_size/sizeof(U)) %k);
+
+			//Line incase k is not a power of 2 (which shouldnt happen)
+			int small_lines = ((max_size/sizeof(T)) %k); //probably (sizeof(U)*block_size)
 			if(small_lines > 0){
 				num_sets_++;
-				sets.push_back(new Set(small_lines));
+				sets.push_back(new Set(small_lines, block_size_));
 			}
 		};
 
-		void PutData(T key, U value){
-			size_t hash_value = hash<T>{}(key);
-			size_t set_index = hash_value % num_sets_;
-			sets[set_index]->PutData(key, value);
+		int getIndex(T* addr){
+			return (reinterpret_cast<uintptr_t>(addr) / block_size_) % num_sets_;
 		};
 
-		void* GetData(T key){
-			size_t hash_value = hash<T>{}(key);
-			size_t set_index = hash_value % num_sets_;
+		void PutData(T* key){
+			int set_index = getIndex(key);
+			sets[set_index]->PutData(key); //Find out which set the key belongs to
+		};
+
+		void* GetData(T* key){
+			int set_index = getIndex(key);
 			return sets[set_index]->GetData(key);
 		};
-
-		bool remove(T key){
-			size_t hash_value = hash<T>{}(key);
-			size_t set_index = hash_value % num_sets_;
-			return sets[set_index]->remove(key);
-		};
-
-		void evict_set(int set_ind){
-			if(set_ind < num_sets_){
-				sets[set_ind]->evict_all();
-			}else{
-				throw out_of_range("Set index out of range");	
-			}
-		};
-
-		void evict_all(){
-			for(Set* s: sets){
-				s->evict_all();
-			}
-		}
 
 		int size(){
 			int sum=0;
@@ -148,21 +128,18 @@ class Kway<T, U>::KImpl{
 		};
 
 		double miss_ratio(){
-			miss_ratio_ = (double)(miss_count()/hit_count());
-			return miss_ratio_;
+			int sum = miss_count() + hit_count();
+			if(sum > 0){
+				miss_ratio_ = (double)(miss_count()/(sum));
+				return miss_ratio_;
+			}else{
+				return 0;
+			}
 		};
 
 		double AMAT(){
-			if(hit_count()!= 0)
-				return (CAT + miss_ratio()*MMAT)/(hit_count() + miss_count());
-			else 
+				return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
 
-				return (double)(hit_count()*CAT + miss_count()*MMAT)/(hit_count() + miss_count());
-
-		};
-
-		double total_access_time(){
-			return (double)(hit_count() * CAT + miss_count()*MMAT)/1e9;
 		};
 
 		void display_all(){
@@ -179,6 +156,7 @@ class Kway<T, U>::KImpl{
 
 		int num_lines(){return lines_;};
 	private:
+		int block_size_;
 		struct Set;
 
 		double miss_ratio_; //miss_count- / hit_count_
@@ -189,28 +167,30 @@ class Kway<T, U>::KImpl{
 		int hit_count_;
 		int miss_count_;
 
+		bool display_graph_;
+
 		vector<Set*> sets;
 };
 
 
-template<typename T, typename U>
-class Kway<T, U>::KImpl::Set{
+template<typename T>
+class Kway<T>::KImpl::Set{
 	public:
-		struct Node;
-		using map_type = std::unordered_map<T, Node*>;
 
-		struct Node{
-			Node (U data): data(data), prev(NULL), next(NULL){}
+		struct CacheLine{
+			CacheLine (int block_size): data(block_size), prev(NULL), next(NULL){}
 
-			U data;
-			Node* prev;
-			Node* next;
-			typename map_type::iterator map_it; //compiler told to add typename but idk why this works
-		};
-		Set(int max_size): set_max_size_(max_size), size_(0), head_(NULL), tail_(NULL), hit_count_(0), miss_count_(0){
+			bool valid;
+			int tag;
+			vector<byte> data;
+			CacheLine* prev;
+			CacheLine* next;
 		};
 
-		void move_front(Node* node){
+		Set(int max_size, int block_size): set_max_size_(max_size), blk_size_(block_size), size_(0), head_(NULL), tail_(NULL), hit_count_(0), miss_count_(0){
+		};
+
+		void move_front(CacheLine* node){
 			if(head_ == node){
 				return;
 			}
@@ -228,85 +208,95 @@ class Kway<T, U>::KImpl::Set{
 			return;
 		};
 
-		void PutData(T key, U value){
+		void PutData(T* key){
 			//update AMAT at the end of each access. Could be more efficient if calculated later but requirements specify to do so.
-
+			
+			//traverse till you find a matching tag?. If tag present, access index within it, else, create new line and evict using lru
 			lock_guard<mutex> lock(mutex_);
 
-			Node* newNode = new Node(value);
-
-			auto it = set_hashmap_.insert(typename map_type::value_type(key, newNode));
-
-			if(!it.second){
-				newNode = it.first->second;
-
-				move_front(newNode);
-				return;
+			int tag = reinterpret_cast<uintptr_t>(key); //TAG
+			
+			CacheLine* tagFinder = head_;
+			while(tagFinder!=NULL){
+				if(tagFinder->tag == tag){
+					break;
+				}
+				tagFinder = tagFinder->next;
 			}
 
-			newNode->map_it = it.first;
+			//Finds matching tag ----> Maybe if flag is true, do something and return, else create new Line and evict old;
+
+			if(tagFinder != NULL){
+				hit_count_++;
+				move_front(tagFinder);
+				int blockOffset = reinterpret_cast<uintptr_t>(key)/sizeof(T)%(blk_size_/sizeof(T)); // Finds offset (in steps of block_size and not bytes...)
+			}
+
+			miss_count_++;
+			CacheLine* newCacheLine = new CacheLine(blk_size_);
+			
+			int intAddress = reinterpret_cast<uintptr_t>(key);
+
+			int blockOffset = intAddress/sizeof(T)%(blk_size_/sizeof(T));
+
+			int lineStart = intAddress - sizeof(T)*blockOffset;
+
+			memcpy(&newCacheLine->data, reinterpret_cast<T>(lineStart), blk_size_);
+
 			if(head_ == NULL){
-				head_ = tail_ = newNode;
+				head_ = tail_ = newCacheLine;
 			}else{
-				head_->prev = newNode;
-				newNode->next = head_;
-				head_ = newNode;
+				head_->prev = newCacheLine;
+				newCacheLine->next = head_;
+				head_ = newCacheLine;
 			}
 			++size_;
 			if(size_ > set_max_size_){
 				tail_ = tail_->prev;
-				set_hashmap_.erase(tail_->next->map_it);
 				delete tail_->next;
 				tail_->next = NULL;
 				size_--;
 			}
+
 		};
 
 		void* GetData(T key){
+				//traverse till you find a matching tag?. If tag present, access index within it, else, create new line and evict using lru
 			lock_guard<mutex> lock(mutex_);
-
-			if(set_hashmap_.find(key) == set_hashmap_.end()){
-				miss_count_++;
-				return nullptr;
-			}else{
-				hit_count_++;
-				Node* temp_node = set_hashmap_.at(key);
-				move_front(temp_node);		
-
-				return &(temp_node->data);
+			
+			int tag = reinterpret_cast<uintptr_t>(key); //TAG
+			
+			CacheLine* tagFinder = head_;
+			while(tagFinder!=NULL){
+				if(tagFinder->tag == tag){
+					break;
+				}
+				tagFinder = tagFinder->next;
 			}
+
+			//Finds matching tag ----> Maybe if flag is true, do something and return, else create new Line and evict old;
+
+			if(tagFinder != NULL){
+				hit_count_++;
+				move_front(tagFinder);
+				int blockOffset = reinterpret_cast<uintptr_t>(key)/sizeof(T)%(blk_size_/sizeof(T)); // Finds offset (in steps of block_size and not bytes...)
+				
+				return &(tagFinder->data[blockOffset*sizeof(T)]);
+
+				//Find the offset and
+			}
+		
+			// else
+			PutData(key);
 			return nullptr;
 		};
 
-		bool remove(T key){
-			lock_guard<mutex> lock(mutex_);
-			
-			auto it = set_hashmap_.find(key);
-
-			if (it == set_hashmap_.end())
-				return false;
-
-			Node* node = it->second;
-
-			move_front(node);
-
-
-			head_ = head_->next;
-
-			if (head_ != NULL)
-				head_->prev = NULL;
-
-			set_hashmap_.erase(node->map_it);
-			delete node;
-
-			size_--;
-
-			return true;
+		//bool remove(){
 			//if(set_hashmap_.find(key) == set_hashmap_.end()){
 			//	return false;
 			//}
 			//size_--;
-			//Node* temp_node = set_hashmap_.at(key);
+			//CacheLine* temp_node = set_hashmap_.at(key);
 
 			//if(head_ == temp_node){
 			//	head_ = temp_node->next;
@@ -322,26 +312,11 @@ class Kway<T, U>::KImpl::Set{
 			//set_hashmap_.erase(temp_node->map_it);
 			//delete temp_node;
 			//return true;
-		};
-
-		void evict_set(){
-			lock_guard<mutex> lock(mutex_);
-
-			size_ = 0;
-			head_ = tail_ = NULL;
-			Node* temp_node = head_, ptr;
-			while(temp_node){
-				ptr = temp_node;
-				set_hashmap_.erase(ptr->map_it);
-				temp_node = temp_node->next;
-				delete ptr;
-			}
-
-		};
+		//};
 
 		int curr_size(){return size_;};
 
-		int set_size() {return set_max_size_;};
+		// int set_size() {return set_max_size_;};
 
 		int set_hit_count(){return hit_count_;};
 
@@ -349,25 +324,28 @@ class Kway<T, U>::KImpl::Set{
 
 
 		void display_set(){
-			Node* temp = head_;
+			//Dunno if viable cuz random access?...
+			CacheLine* temp = head_;
 			if(temp == NULL){
 				cout<<" Empty ";
 			}
 			while(temp != NULL){
-				cout<<" "<<temp->data;
+				for(int i=0; i<blk_size_; i+= sizeof(T)){
+					cout<<" "<<*(T*)(&temp->data[i]);
+				}
 				temp = temp->next;
 			}
 			return;
 		};
 
 	private:
-		unordered_map<T, Node*> set_hashmap_;
-		Node* head_;
-		Node* tail_;
+		CacheLine* head_;
+		CacheLine* tail_;
 
 		int size_;
 		int set_max_size_;
 
+		int blk_size_;
 		int hit_count_;
 		int miss_count_;
 
