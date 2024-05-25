@@ -76,26 +76,31 @@ class Kway<T>::KImpl{
 	public:
 		//actual implementation
 		KImpl(int max_size, int k, int block_size, bool graph = false) : max_size_(max_size), lines_(k), size_(0), hit_count_(0), miss_count_(0), block_size_(block_size), display_graph_(graph) {
-			num_sets_ = ceil(max_size / (k * sizeof(T)*block_size_));
+			num_sets_ = ceil(max_size / (k *block_size));
 			for (int i = 0; i < num_sets_; i++) {
-				sets.push_back(new Set(lines_, block_size_));
+				sets.push_back(new Set(lines_, block_size));
 			};
 
 			//Line incase k is not a power of 2 (which shouldnt happen)
-			int small_lines = ((max_size/sizeof(T)) %k); //probably (sizeof(U)*block_size)
-			if(small_lines > 0){
-				num_sets_++;
-				sets.push_back(new Set(small_lines, block_size_));
-			}
+			/*int small_lines = ((max_size/block_size)%k); //probably (sizeof(U)*block_size)
+			  if(small_lines > 0){
+			  num_sets_++;
+			  sets.push_back(new Set(small_lines, block_size));
+			  }*/
 		};
 
 		int getIndex(T* addr){
+			cout<<"In getIndex yo\n";
 			return (reinterpret_cast<uintptr_t>(addr) / block_size_) % num_sets_;
 		};
 
 		void PutData(T* key){
 			int set_index = getIndex(key);
+			cout<<"Set Index ="<<set_index<<endl;
+			cout<<"Num Sets="<<num_sets_<<endl;
+			cout<<"Set 0 ka hit_count= "<<sets[0]->set_hit_count()<<endl;
 			sets[set_index]->PutData(key); //Find out which set the key belongs to
+			cout<<"In PutData yo\n";
 		};
 
 		void* GetData(T* key){
@@ -138,7 +143,7 @@ class Kway<T>::KImpl{
 		};
 
 		double AMAT(){
-				return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
+			return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
 
 		};
 
@@ -178,11 +183,11 @@ class Kway<T>::KImpl::Set{
 	public:
 
 		struct CacheLine{
-			CacheLine (int block_size): data(block_size), prev(NULL), next(NULL){}
+			CacheLine (int block_size): data(block_size/sizeof(T)), prev(NULL), next(NULL){}
 
 			bool valid;
 			int tag;
-			vector<byte> data;
+			vector<T> data;
 			CacheLine* prev;
 			CacheLine* next;
 		};
@@ -208,14 +213,16 @@ class Kway<T>::KImpl::Set{
 			return;
 		};
 
+		void Tempo(T* key){
+			cout<<"What dis"<<endl;
+			return;
+		};
+
 		void PutData(T* key){
-			//update AMAT at the end of each access. Could be more efficient if calculated later but requirements specify to do so.
-			
-			//traverse till you find a matching tag?. If tag present, access index within it, else, create new line and evict using lru
+			cout<<"Yep";
 			lock_guard<mutex> lock(mutex_);
 
 			int tag = reinterpret_cast<uintptr_t>(key); //TAG
-			
 			CacheLine* tagFinder = head_;
 			while(tagFinder!=NULL){
 				if(tagFinder->tag == tag){
@@ -225,24 +232,24 @@ class Kway<T>::KImpl::Set{
 			}
 
 			//Finds matching tag ----> Maybe if flag is true, do something and return, else create new Line and evict old;
-
+			
 			if(tagFinder != NULL){
 				hit_count_++;
 				move_front(tagFinder);
 				int blockOffset = reinterpret_cast<uintptr_t>(key)/sizeof(T)%(blk_size_/sizeof(T)); // Finds offset (in steps of block_size and not bytes...)
 			}
-
+			
 			miss_count_++;
 			CacheLine* newCacheLine = new CacheLine(blk_size_);
-			
-			int intAddress = reinterpret_cast<uintptr_t>(key);
 
+			int intAddress = reinterpret_cast<uintptr_t>(key);
+		
 			int blockOffset = intAddress/sizeof(T)%(blk_size_/sizeof(T));
 
 			int lineStart = intAddress - sizeof(T)*blockOffset;
 
-			memcpy(&newCacheLine->data, reinterpret_cast<T>(lineStart), blk_size_);
-
+			memcpy(&newCacheLine->data, reinterpret_cast<T*>(lineStart), blk_size_);
+		};/*
 			if(head_ == NULL){
 				head_ = tail_ = newCacheLine;
 			}else{
@@ -257,15 +264,69 @@ class Kway<T>::KImpl::Set{
 				tail_->next = NULL;
 				size_--;
 			}
-
+		};*/
+		void placeHolder(){
+			return;
 		};
+		/*void PutData(T* key){
+		  cout<<"Yep";
+		//update AMAT at the end of each access. Could be more efficient if calculated later but requirements specify to do so.
+
+		//traverse till you find a matching tag?. If tag present, access index within it, else, create new line and evict using lru
+		lock_guard<mutex> lock(mutex_);
+
+		int tag = reinterpret_cast<uintptr_t>(key); //TAG
+
+		CacheLine* tagFinder = head_;
+		while(tagFinder!=NULL){
+		if(tagFinder->tag == tag){
+		break;
+		}
+		tagFinder = tagFinder->next;
+		}
+
+		//Finds matching tag ----> Maybe if flag is true, do something and return, else create new Line and evict old;
+
+		if(tagFinder != NULL){
+		hit_count_++;
+		move_front(tagFinder);
+		int blockOffset = reinterpret_cast<uintptr_t>(key)/sizeof(T)%(blk_size_/sizeof(T)); // Finds offset (in steps of block_size and not bytes...)
+		}
+
+		miss_count_++;
+		CacheLine* newCacheLine = new CacheLine(blk_size_);
+
+		int intAddress = reinterpret_cast<uintptr_t>(key);
+
+		int blockOffset = intAddress/sizeof(T)%(blk_size_/sizeof(T));
+
+		int lineStart = intAddress - sizeof(T)*blockOffset;
+
+		memcpy(&newCacheLine->data, reinterpret_cast<T*>(lineStart), blk_size_);
+
+		if(head_ == NULL){
+		head_ = tail_ = newCacheLine;
+		}else{
+		head_->prev = newCacheLine;
+		newCacheLine->next = head_;
+		head_ = newCacheLine;
+		}
+		++size_;
+		if(size_ > set_max_size_){
+		tail_ = tail_->prev;
+		delete tail_->next;
+		tail_->next = NULL;
+		size_--;
+		}
+
+		};*/
 
 		void* GetData(T key){
-				//traverse till you find a matching tag?. If tag present, access index within it, else, create new line and evict using lru
+			//traverse till you find a matching tag?. If tag present, access index within it, else, create new line and evict using lru
 			lock_guard<mutex> lock(mutex_);
-			
+
 			int tag = reinterpret_cast<uintptr_t>(key); //TAG
-			
+
 			CacheLine* tagFinder = head_;
 			while(tagFinder!=NULL){
 				if(tagFinder->tag == tag){
@@ -280,38 +341,38 @@ class Kway<T>::KImpl::Set{
 				hit_count_++;
 				move_front(tagFinder);
 				int blockOffset = reinterpret_cast<uintptr_t>(key)/sizeof(T)%(blk_size_/sizeof(T)); // Finds offset (in steps of block_size and not bytes...)
-				
+
 				return &(tagFinder->data[blockOffset*sizeof(T)]);
 
 				//Find the offset and
 			}
-		
+
 			// else
-			PutData(key);
+			PutData_(key);
 			return nullptr;
 		};
 
 		//bool remove(){
-			//if(set_hashmap_.find(key) == set_hashmap_.end()){
-			//	return false;
-			//}
-			//size_--;
-			//CacheLine* temp_node = set_hashmap_.at(key);
+		//if(set_hashmap_.find(key) == set_hashmap_.end()){
+		//	return false;
+		//}
+		//size_--;
+		//CacheLine* temp_node = set_hashmap_.at(key);
 
-			//if(head_ == temp_node){
-			//	head_ = temp_node->next;
-			//}
-			//if(tail_ == temp_node){
-			//	tail_ = temp_node->prev;
-			//}
-			//if(temp_node->next){
-			//	temp_node->next->prev = temp_node->prev;
-			//}if(temp_node->prev){
-			//	temp_node->prev->next = temp_node->next;
-			//}
-			//set_hashmap_.erase(temp_node->map_it);
-			//delete temp_node;
-			//return true;
+		//if(head_ == temp_node){
+		//	head_ = temp_node->next;
+		//}
+		//if(tail_ == temp_node){
+		//	tail_ = temp_node->prev;
+		//}
+		//if(temp_node->next){
+		//	temp_node->next->prev = temp_node->prev;
+		//}if(temp_node->prev){
+		//	temp_node->prev->next = temp_node->next;
+		//}
+		//set_hashmap_.erase(temp_node->map_it);
+		//delete temp_node;
+		//return true;
 		//};
 
 		int curr_size(){return size_;};
