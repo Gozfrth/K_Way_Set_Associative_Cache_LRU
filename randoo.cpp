@@ -28,20 +28,21 @@ using namespace std;
 
 int main(){
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
-	Kway<int> kway_cache(256, 4, 8);
+	// (max_size, k, block_size)
+	Kway<int> kway_cache(1024, 128, 8);
 
-	vector<int>arr(1000);
-	for(int i=0; i<1000; i++){
+	vector<int>arr(4000);
+	for(int i=0; i<4000; i++){
 		arr[i] = i;
 	}
 
 	//PUTTING DATA
 	cout<<"----PUTTING DATA----\n";
 
-	for(int i=0; i<1000; i++){
+	for(int i=0; i<4000; i++){
 		// kway_cache.display_all();
 		kway_cache.PutData(&arr[i]);
-		cout<<"YO";
+		cout<<"YO"<<i;
 		cout<<"\n\n\n";
 	}		
 	// kway_cache.display_all();
