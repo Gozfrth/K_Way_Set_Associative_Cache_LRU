@@ -229,8 +229,9 @@ class Kway<T>::KImpl::Set{
 			return;
 		};
 
-		void PutData(T* key) {
-			lock_guard<mutex> lock(mutex_);
+		void PutData(T* key, bool fromGet = false) {
+			if(!fromGet)
+				lock_guard<mutex> lock(mutex_);
 
 			int tag = (reinterpret_cast<uintptr_t>(key) / (blk_size_ * num_sets)); // TAG
 			CacheLine* tagFinder = head_;
@@ -314,7 +315,7 @@ class Kway<T>::KImpl::Set{
 			}
 
 			// else
-			PutData(key);
+			PutData(key, true);
 			return nullptr;
 		};
 
