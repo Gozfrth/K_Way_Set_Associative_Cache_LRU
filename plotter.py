@@ -1,22 +1,28 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import sys
 
-# Read the CSV file
-data = pd.read_csv("cache_simulation.csv")
+def plot_cache_data(csv_file, output_png):
+    data = pd.read_csv(csv_file)
 
-# Plot the data
-plt.figure(figsize=(10, 6))
-plt.plot(data['Step'], data['HitCount'], label='Hit Count')
-plt.plot(data['Step'], data['MissCount'], label='Miss Count')
-plt.xlabel('Step')
-plt.ylabel('Count')
-plt.title('Cache Hit and Miss Counts Over Time')
-plt.legend()
-plt.grid(True)
+    plt.figure(figsize=(15, 9))
+    plt.plot(data['Step'], data['HitCount'], label='Hit Count')
+    plt.plot(data['Step'], data['MissCount'], label='Miss Count')
+    plt.xlabel('Step')
+    plt.ylabel('Count')
+    plt.title('Cache Hit and Miss Counts Over Time')
+    plt.legend()
+    plt.grid(True)
 
-# Save the plot as an image file
-plt.savefig("cache_simulation_plot.png")
+    plt.savefig(output_png)
 
-# Optionally, you can print a message to confirm the plot was saved
-print("Plot saved as cache_simulation_plot.png")
+    print(f"Plot saved as {output_png}")
 
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        print("Usage: python3 plotter.py <input_csv_file> <output_png_file>")
+        sys.exit(1)
+
+    input_csv = sys.argv[1]
+    output_png = sys.argv[2]
+    plot_cache_data(input_csv, output_png)

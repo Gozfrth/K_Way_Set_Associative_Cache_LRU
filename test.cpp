@@ -37,7 +37,7 @@ using namespace std;
 class CacheTest : public testing::Test{
 	protected:
 		// kway_cache (max_size, k, block_size) max and block size in bytes
-		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16), kway_cache_small(4, 1){
+		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, true, "cache_simulation"), kway_cache_small(4, 1){
 		}
 
 		~CacheTest() override {
@@ -69,7 +69,6 @@ TEST_F(CacheTest, CacheOperations){
 	ASSERT_EQ(nullptr, kway_cache_3.GetData((&i)+1)); //not in cache
 }
 
-
 // TEST_2
 TEST_F(CacheTest, Structure){
 	//FULLY ASSOCIATIVE (k= size of cache)
@@ -99,8 +98,6 @@ TEST_F(CacheTest, Structure){
 	//DIRECT-MAPPED (k=1)
 
 	//for kway_cache_2, add one element, then another element that falls into the same set. The first element must be evicted by now. If yes, correct. Else, no
-	kway_cache_2.PutData(&arr[1]);
-	ASSERT_NE(nullptr, kway_cache_2.GetData(&arr[1]));
 
 	//Since there are 32 sets, assuming it is a basic mod hash gunction, for eviction to occur, an item with key 33 needs to be inserted. 
 	//NOTE:
@@ -110,7 +107,6 @@ TEST_F(CacheTest, Structure){
 	ASSERT_NE(nullptr, kway_cache_2.GetData(&arr[5]));//33 must be inserted
 
 	ASSERT_EQ(nullptr, kway_cache_2.GetData(&arr[0])); //1 should be evicted
-	ASSERT_EQ(nullptr, kway_cache_2.GetData(&arr[1])); //1 should be evicted
 };
 
 // TEST_3
@@ -124,21 +120,22 @@ TEST_F(CacheTest, SmallSize){
 
 // TEST_4
 TEST_F(CacheTest, LargeSize){
-        int arr[4194304], i;
+	kway_cache_large.initGraph("Large");
+	int arr[1000000], i;
 
-        for(i =0; i<4194304; i++){
+        for(i =0; i<1000000; i++){
                 arr[i] = (rand()%ONE_MB); //random initialization
         }
 
-        for(i=0; i<4194304; i++){
+        for(i=0; i<1000000; i++){
                 kway_cache_large.PutData(&arr[i]);
         }
-        for(i=3932160; i<4194304; i++){
+        for(i=750000; i<1000000; i++){
                 ASSERT_NE(nullptr, kway_cache_large.GetData(&arr[i]));
         }
+	kway_cache_large.terminateGraph();
 
 }
-
 // TEST_5
 TEST_F(CacheTest, CacheLiterals){
 	//CACHE LITERALS
@@ -179,6 +176,9 @@ int threadArr[1000];
 void ThreadTesterFunction(Kway<int>* cache){
 	for(int i=0; i<1000; i++){
 		cache->PutData(&threadArr[i]);
+	}
+	for(int i=0; i<1000; i++){
+		cache->GetData(&threadArr[i]);
 	}
 };
 

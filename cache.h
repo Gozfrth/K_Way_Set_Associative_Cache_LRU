@@ -21,7 +21,7 @@
 // CAT- Cache Access time (10 nanoseconds)
 #define MMAT 1000
 // MMAT- Main Memory Access Time (1 microsecond = 1000 nanoseconds)
-#define PLOT_STEP 1000
+#define PLOT_STEP 100
 // PLOT_STEP- Interval at which data points are plotted in csv file
 
 #include<iostream>
@@ -87,9 +87,6 @@ class Kway<T>::KImpl{
 			for (int i = 0; i < num_sets_; i++) {
 				sets.push_back(new Set(lines_, block_size, num_sets_));
 			};
-			if(plot_ == true){
-				initGraph(fName);
-			};
 
 			//Line incase k is not a power of 2 (which shouldnt happen)
 			/*int small_lines = ((max_size/block_size)%k); //probably (sizeof(U)*block_size)
@@ -103,10 +100,13 @@ class Kway<T>::KImpl{
 			return (reinterpret_cast<uintptr_t>(addr) / block_size_) % num_sets_;
 		};
 
-		void logCounts(ofstream& logFile, int step){
-			cout<<"here"<<endl;
-			logFile << step << "," <<hit_count() << ","<<miss_count()<<endl;
-		};
+		void logCounts(ofstream& logFile, int step) {
+			logFile << step << "," << hit_count() << "," << miss_count() << endl;
+			logFile.flush(); // Flush the buffer to ensure data is written immediately
+			if (logFile.fail()) {
+				cerr << "Error writing to log file!" << endl;
+			}
+		}
 
 		void PutData(T* key){
 			int set_index = getIndex(key);

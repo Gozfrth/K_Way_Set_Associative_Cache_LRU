@@ -29,8 +29,8 @@ using namespace std;
 int main(){
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
 	// (max_size, k, block_size)
-	Kway<int> kway_cache(1024, 4, 16, true, "randoo_plot");
-
+	Kway<int> kway_cache(1024, 4, 16, true); 
+	kway_cache.initGraph("randoo");
 	vector<int>arr(4000);
 	for(int i=0; i<4000; i++){
 		arr[i] = i;
