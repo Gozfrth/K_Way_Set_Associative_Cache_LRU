@@ -29,7 +29,7 @@ using namespace std;
 int main(){
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
 	// (max_size, k, block_size)
-	Kway<int> kway_cache(1024, 128, 8);
+	Kway<int> kway_cache(1024, 4, 16, true, "randoo_plot");
 
 	vector<int>arr(4000);
 	for(int i=0; i<4000; i++){
@@ -42,8 +42,6 @@ int main(){
 	for(int i=0; i<4000; i++){
 		// kway_cache.display_all();
 		kway_cache.PutData(&arr[i]);
-		cout<<"YO"<<i;
-		cout<<"\n\n\n";
 	}		
 	// kway_cache.display_all();
 
@@ -73,7 +71,9 @@ int main(){
 
 	kway_cache.remove(2);
 	kway_cache.remove(3);
-	*/cout<<"AVERAGE MEMORY ACCESS TIME: "<<kway_cache.AMAT()<<"seconds"<<endl;
-
+	*/
+	cout<<"AVERAGE MEMORY ACCESS TIME: "<<kway_cache.AMAT()<<"seconds"<<endl;
+	
+	kway_cache.terminateGraph();
 	return 1;
 }

@@ -37,17 +37,19 @@ using namespace std;
 class CacheTest : public testing::Test{
 	protected:
 		// kway_cache (max_size, k, block_size) max and block size in bytes
-		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, true, "cache_simulation"), kway_cache_small(4, 1){
+		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, true), kway_cache_small(4, 1){
 		}
 
 		~CacheTest() override {
 		}
 
 		void SetUp() override {
+			kway_cache_large.initGraph();
 			//code here called right after constructor.
 		}
 
 		void TearDown() override {
+			kway_cache_large.terminateGraph();
 			//codfe called right after each test (before destructor)
 		}
 		Kway<int> kway_cache_1; //fully associative
@@ -121,7 +123,7 @@ TEST_F(CacheTest, SmallSize){
 
 // TEST_4
 TEST_F(CacheTest, LargeSize){
-	int arr[1000000], i;
+        int arr[1000000], i;
 
         for(i =0; i<1000000; i++){
                 arr[i] = (rand()%ONE_MB); //random initialization
@@ -133,7 +135,6 @@ TEST_F(CacheTest, LargeSize){
         for(i=750000; i<1000000; i++){
                 ASSERT_NE(nullptr, kway_cache_large.GetData(&arr[i]));
         }
-	kway_cache_large.terminateGraph();
 
 }
 // TEST_5
