@@ -8,13 +8,9 @@
 // ond.
 
 // TODO:
-// WHY DO I GET SEGMENTATION FAULT WHEN I CALL move_front() !???
-// ---Figure out why the display function seems bugged (Head isnt always the first element?) The cache itself works, but display seems bugged.
-// ---add display function to display all data in a cache set (and the whole cache itself)
-// line 237 try remove with commented out code (commented cuz i thought segmentatin fault was cuz of that)
-// ---Add discrete time variables (10ns access time and miss_penalty, etc) 
 // Clean up implementation
-//
+// Find bugs / handle cases where k isnt power of 2 or variable block_size?
+// Add AMAT into the csv file
 
 #pragma once
 #define CAT 10
@@ -88,12 +84,6 @@ class Kway<T>::KImpl{
 				sets.push_back(new Set(lines_, block_size, num_sets_));
 			};
 
-			//Line incase k is not a power of 2 (which shouldnt happen)
-			/*int small_lines = ((max_size/block_size)%k); //probably (sizeof(U)*block_size)
-			  if(small_lines > 0){
-			  num_sets_++;
-			  sets.push_back(new Set(small_lines, block_size));
-			  }*/
 		};
 
 		int getIndex(T* addr){
@@ -380,29 +370,6 @@ class Kway<T>::KImpl::Set{
 			return nullptr;
 		};
 
-		//bool remove(){
-		//if(set_hashmap_.find(key) == set_hashmap_.end()){
-		//	return false;
-		//}
-		//size_--;
-		//CacheLine* temp_node = set_hashmap_.at(key);
-
-		//if(head_ == temp_node){
-		//	head_ = temp_node->next;
-		//}
-		//if(tail_ == temp_node){
-		//	tail_ = temp_node->prev;
-		//}
-		//if(temp_node->next){
-		//	temp_node->next->prev = temp_node->prev;
-		//}if(temp_node->prev){
-		//	temp_node->prev->next = temp_node->next;
-		//}
-		//set_hashmap_.erase(temp_node->map_it);
-		//delete temp_node;
-		//return true;
-		//};
-
 		int curr_size(){return size_;};
 
 		// int set_size() {return set_max_size_;};
@@ -441,11 +408,3 @@ class Kway<T>::KImpl::Set{
 
 		mutex mutex_;
 };
-
-
-
-// template<typename T, typename U>
-// class KWay<T, U>::KImpl : put()
-
-//Strong references from  https://github.com/lamerman/cpp-lru-cache, https://github.com/ekg/lru_cache
-
