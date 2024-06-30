@@ -1,36 +1,26 @@
-//TODO:
-
-//STRUCTURE OF CACHE----
-//test with k=1, k=number of sets. (boundary test cases) -- testing if definition of structure of the cache is correct.
-
-//CACHE OPERATIONS
-//insert data and check if it is retrievable, insert more data than size and check LRU, remove and verify no longer retrievable.
-
-//CACHE LITERALS
-//insert data, access multiple times (check if cache_hits_ increases), (access data not in cache and verify miss increments)
-
-//THREAD SAFETY
-//test concurrent access to cache from multiple threads... gotta figure out how to
-//verufy thread safety and consistency
-
-//Test with corner cases / large values that are more likely to cause bugs. 
-//Test with very large size of cache
-
-
-
 #include "cache.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
-//Write unit tests for this instead.
+#include <string>
+#include <time.h>
 
 using namespace std;
 
-int main(){
+int main(int argc, char*argv[]){
+	srand(time(0));
+	if(argc != 5){
+		cout<<"Erroro"<<endl;
+		exit(1);
+	}
+	int max_size = stoi(argv[1]);
+	int k = stoi(argv[2]);
+	int block_size = stoi(argv[3]);
+	int step = stoi(argv[4]);
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
 	// (max_size, k, block_size)
-	Kway<int> kway_cache(1024, 4, 16, true); 
-	kway_cache.initGraph("randoo");
+	Kway<int> kway_cache(max_size, k, block_size, true, step); 
+	kway_cache.initGraph("random");
 	vector<int>arr(4000);
 	for(int i=0; i<4000; i++){
 		arr[i] = i;
@@ -41,7 +31,7 @@ int main(){
 
 	for(int i=0; i<4000; i++){
 		// kway_cache.display_all();
-		kway_cache.PutData(&arr[i]);
+		kway_cache.PutData(&arr[rand()%4000]);
 	}		
 	// kway_cache.display_all();
 
@@ -50,6 +40,8 @@ int main(){
 	cout<<"Number of sets: "<<kway_cache.num_sets()<<""<<endl;
 	cout<<"Cache Miss Count: "<<kway_cache.miss_count()<<""<<endl;
 	cout<<"Cache Hit Count: "<<kway_cache.hit_count()<<""<<endl;
+	cout<<"Cache Miss Ratio: "<<kway_cache.miss_ratio()<<""<<endl;
+
 
 	//GETTING DATA
 	/*cout<<"\n\n----GETTING DATA----\n";
@@ -73,7 +65,7 @@ int main(){
 	kway_cache.remove(3);
 	*/
 	cout<<"AVERAGE MEMORY ACCESS TIME: "<<kway_cache.AMAT()<<"seconds"<<endl;
-	
 	kway_cache.terminateGraph();
+	cout<<"\n\n\n\n";
 	return 1;
 }

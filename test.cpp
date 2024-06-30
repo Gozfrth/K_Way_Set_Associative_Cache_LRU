@@ -37,7 +37,7 @@ using namespace std;
 class CacheTest : public testing::Test{
 	protected:
 		// kway_cache (max_size, k, block_size) max and block size in bytes
-		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, true, "cache_simulation"), kway_cache_small(4, 1){
+		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, true, 200, "cache_simulation"), kway_cache_small(4, 1){
 		}
 
 		~CacheTest() override {

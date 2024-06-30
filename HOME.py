@@ -24,8 +24,8 @@ def plot_cache_data(csv_file, output_png, field):
 
     st.pyplot(plt)
 
-def run_cache(max_size, k, block_size, step_size):
-    subprocess.call(["g++", "pyexec.cpp"])
+def run_cache(execution, max_size, k, block_size, step_size):
+    subprocess.call(["g++", f"{execution}.cpp"])
     subprocess.call(["./a.out", str(max_size), str(k), str(block_size), str(step_size)])
 
 def main():
@@ -33,27 +33,36 @@ def main():
     st.markdown("""# K-WAY SET-ASSOCIATIVE CACHE SIMULATION""")
     st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
 
-    MAXSIZE_input = st.number_input("Enter MAX SIZE of cache (bytes)", value=128)
+    MAXSIZE_input = st.number_input("Enter MAX SIZE of cache (bytes)", value=512)
     K_input = st.number_input("Enter the value of K", value=4)
-    BLOCKSIZE_input = st.number_input("Enter the block size (bytes)", value=16)
+    BLOCKSIZE_input = st.number_input("Enter the block size (bytes)", value=32)
     STEP_input = st.number_input("Enter the step size ", value=10)
-    
+
+    execution = st.selectbox(
+        "Select execution method",
+        ("sequential", "random"),
+        index=None,
+        )
 
     options = st.multiselect("Select fields", ['MissCount', 'HitCount', 'AMAT', 'MissRatio'], ['MissRatio', 'AMAT'])
 
     st.write("You selected:", options)
-    
+
 
     if(not (is_power_of_two(K_input))):
         st.error(f"{K_input} is not a power of 2")
-    
+
     if st.button(label="SIMULATE"):
-        run_cache(MAXSIZE_input, K_input, BLOCKSIZE_input, STEP_input)
+        if(execution == None):
+            st.error("Enter an execution method")
+            return
         st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
+        run_cache(execution, MAXSIZE_input, K_input, BLOCKSIZE_input, STEP_input)
         for field in options:
             st.markdown(f"""### {field}:""")
-            plot_cache_data("pyexec.csv", "pyexec", field) 
-            st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
+            plot_cache_data(f"{execution}.csv", f"{execution}", field) 
+        # remove {execution.csv} here
+        st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

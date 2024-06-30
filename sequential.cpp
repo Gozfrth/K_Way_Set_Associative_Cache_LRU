@@ -18,7 +18,7 @@ int main(int argc, char*argv[]){
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
 	// (max_size, k, block_size)
 	Kway<int> kway_cache(max_size, k, block_size, true, step); 
-	kway_cache.initGraph("pyexec");
+	kway_cache.initGraph("sequential");
 	vector<int>arr(4000);
 	for(int i=0; i<4000; i++){
 		arr[i] = i;
