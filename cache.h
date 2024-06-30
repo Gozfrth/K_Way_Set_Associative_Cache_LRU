@@ -20,15 +20,15 @@
 #define PLOT_STEP 100
 // PLOT_STEP- Interval at which data points are plotted in csv file
 
-#include<iostream>
-#include<mutex>
-#include<memory>
-#include<utility>
-#include<cmath>
-#include<unordered_map>
-#include<cstring>
-#include<vector>
-#include<fstream>
+#include <iostream>
+#include <mutex>
+#include <memory>
+#include <utility>
+#include <cmath>
+#include <unordered_map>
+#include <cstring>
+#include <vector>
+#include <fstream>
 
 #include <SFML/Graphics.hpp>
 
@@ -38,7 +38,7 @@ template<typename T>
 class Kway{
 	public:
 		//constructor default block_size = 1 element
-		Kway(int max_size, int k, int block_size = sizeof(T), bool plot = false, string fName = ""); 
+		Kway(int max_size, int k, int block_size = sizeof(T), bool plot = false, int step = 10, string fName = ""); 
 
 		void logCounts(ofstream& logFile, int step=10){return KImpl_->logCounts(logFile, step);};
 		void PutData(T* key){return KImpl_->PutData(key);};
@@ -72,13 +72,13 @@ class Kway{
 		//		void operator=(const Kway&);
 };
 template<typename T>
-Kway<T>::Kway(int max_size, int k, int block_size, bool plot, string fName) : KImpl_(new KImpl(max_size, k, block_size, plot, fName)) {}
+Kway<T>::Kway(int max_size, int k, int block_size, bool plot, int step, string fName) : KImpl_(new KImpl(max_size, k, block_size, plot, step, fName)) {}
 
 template<typename T>
 class Kway<T>::KImpl{
 	public:
 		//actual implementation
-		KImpl(int max_size, int k, int block_size, bool plot = false, string fName = "") : max_size_(max_size), lines_(k), size_(0), hit_count_(0), miss_count_(0), block_size_(block_size), plot_(plot), fName_(fName) {
+		KImpl(int max_size, int k, int block_size, bool plot = false, int step=10, string fName = "") : max_size_(max_size), lines_(k), size_(0), hit_count_(0), miss_count_(0), block_size_(block_size), plot_(plot), step_size_(step), fName_(fName) {
 			num_sets_ = ceil(max_size / (k *block_size));
 			for (int i = 0; i < num_sets_; i++) {
 				sets.push_back(new Set(lines_, block_size, num_sets_));
@@ -91,7 +91,7 @@ class Kway<T>::KImpl{
 		};
 
 		void logCounts(ofstream& logFile, int step) {
-			logFile << step << "," << hit_count() << "," << miss_count() << endl;
+			logFile << step << "," << hit_count() << "," << miss_count()<<","<<AMAT()<<","<<miss_ratio() << endl;
 			logFile.flush(); // Flush the buffer to ensure data is written immediately
 			if (logFile.fail()) {
 				cerr << "Error writing to log file!" << endl;
@@ -102,7 +102,7 @@ class Kway<T>::KImpl{
 			int set_index = getIndex(key);
 			sets[set_index]->PutData(key); //Find out which set the key belongs to
 			step_++;
-			if(plot_ == true && step_%PLOT_STEP == 0){
+			if(plot_ == true && step_%step_size_ == 0){
 				logCounts(logFile_, step_);
 			}
 		};
@@ -111,7 +111,7 @@ class Kway<T>::KImpl{
 			int set_index = getIndex(key);
 			return sets[set_index]->GetData(key);
 			step_++;
-			if(plot_ == true && step_%PLOT_STEP == 0){
+			if(plot_ == true && step_%step_size_ == 0){
 				logCounts(logFile_, step_);
 			}
 		};
@@ -143,7 +143,7 @@ class Kway<T>::KImpl{
 		double miss_ratio(){
 			int sum = miss_count() + hit_count();
 			if(sum > 0){
-				miss_ratio_ = (double)(miss_count()/(sum));
+				miss_ratio_ = (double)(miss_count())/(sum);
 				return miss_ratio_;
 			}else{
 				return 0;
@@ -151,6 +151,7 @@ class Kway<T>::KImpl{
 		};
 
 		double AMAT(){
+			//nanoseconds
 			return (double)(hit_count()*CAT + miss_count()*MMAT)/1000000000;
 
 		};
@@ -171,7 +172,7 @@ class Kway<T>::KImpl{
 
 		void initGraph(string fName){
 			logFile_.open(fName + ".csv");
-			logFile_<<"Step,HitCount,MissCount"<<endl;
+			logFile_<<"Step,HitCount,MissCount,AMAT,MissRatio"<<endl;
 		};
 
 		void terminateGraph(){
@@ -192,6 +193,7 @@ class Kway<T>::KImpl{
 		int hit_count_;
 		int miss_count_;
 		bool plot_;
+		int step_size_;
 		int step_ = 0;
 
 		vector<Set*> sets;

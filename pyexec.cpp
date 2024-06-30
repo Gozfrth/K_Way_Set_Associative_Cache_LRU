@@ -7,16 +7,17 @@
 using namespace std;
 
 int main(int argc, char*argv[]){
-	if(argc != 4){
+	if(argc != 5){
 		cout<<"Erroro"<<endl;
 		exit(1);
 	}
 	int max_size = stoi(argv[1]);
 	int k = stoi(argv[2]);
 	int block_size = stoi(argv[3]);
+	int step = stoi(argv[4]);
 	//128 bytes cache -> 4 byte int -> 4 lines in a set(k) -> 8 sets
 	// (max_size, k, block_size)
-	Kway<int> kway_cache(max_size, k, block_size, true); 
+	Kway<int> kway_cache(max_size, k, block_size, true, step); 
 	kway_cache.initGraph("pyexec");
 	vector<int>arr(4000);
 	for(int i=0; i<4000; i++){
@@ -37,6 +38,8 @@ int main(int argc, char*argv[]){
 	cout<<"Number of sets: "<<kway_cache.num_sets()<<""<<endl;
 	cout<<"Cache Miss Count: "<<kway_cache.miss_count()<<""<<endl;
 	cout<<"Cache Hit Count: "<<kway_cache.hit_count()<<""<<endl;
+	cout<<"Cache Miss Ratio: "<<kway_cache.miss_ratio()<<""<<endl;
+
 
 	//GETTING DATA
 	/*cout<<"\n\n----GETTING DATA----\n";
@@ -60,7 +63,7 @@ int main(int argc, char*argv[]){
 	kway_cache.remove(3);
 	*/
 	cout<<"AVERAGE MEMORY ACCESS TIME: "<<kway_cache.AMAT()<<"seconds"<<endl;
-	
 	kway_cache.terminateGraph();
+	cout<<"\n\n\n\n";
 	return 1;
 }
