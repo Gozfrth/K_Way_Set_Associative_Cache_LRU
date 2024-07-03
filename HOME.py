@@ -24,11 +24,13 @@ def plot_cache_data(csv_file, output_png, field):
 
     st.pyplot(plt)
 
-def run_cache(execution, max_size, k, block_size, step_size):
+def run_cache(execution, max_size, k, block_size, step_size, display, iterations):
     subprocess.call(["g++", f"{execution}.cpp"])
-    subprocess.call(["./a.out", str(max_size), str(k), str(block_size), str(step_size)])
-
+    req_output = subprocess.run(["./a.out", "--max_size", str(max_size), "--k", str(k), "--block_size", str(block_size), "--step_size", str(step_size), "--display", str(display), "--iterations", str(iterations)], capture_output = True, text = True)
+    return req_output.stdout
 def main():
+
+
     st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
     st.markdown("""# K-WAY SET-ASSOCIATIVE CACHE SIMULATION""")
     st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
@@ -37,10 +39,13 @@ def main():
     K_input = st.number_input("Enter the value of K", value=4)
     BLOCKSIZE_input = st.number_input("Enter the block size (bytes)", value=32)
     STEP_input = st.number_input("Enter the step size ", value=10)
+    ITERATIONS_input = st.number_input("Enter the number of iterations", value = 250)
+
+    display_input = st.checkbox("Display Elements (only if max_size < 128)")
 
     execution = st.selectbox(
         "Select execution method",
-        ("sequential", "random"),
+        ("sequential", "random"), 
         index=None,
         )
 
@@ -56,13 +61,18 @@ def main():
         if(execution == None):
             st.error("Enter an execution method")
             return
+
         st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
-        run_cache(execution, MAXSIZE_input, K_input, BLOCKSIZE_input, STEP_input)
+        output = run_cache(execution=execution, max_size=MAXSIZE_input, k=K_input, block_size=BLOCKSIZE_input, step_size=STEP_input, display = display_input and (MAXSIZE_input <= 128), iterations = ITERATIONS_input)
+
         for field in options:
             st.markdown(f"""### {field}:""")
             plot_cache_data(f"{execution}.csv", f"{execution}", field) 
         # remove {execution.csv} here
+        
         st.markdown("""<hr style="border:3px solid rgb(255,255,255) ">""", unsafe_allow_html=True)
+        st.markdown("""### TERMINAL OUTPUT:""")
+        st.text(output)
 
 if __name__ == "__main__":
     main()

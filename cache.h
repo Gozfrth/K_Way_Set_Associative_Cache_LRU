@@ -161,6 +161,7 @@ class Kway<T>::KImpl{
 			for(int i=0; i<num_sets_; i++){
 				cout<<"\n------SET-"<<i+1<<"------\n";
 				sets[i]->display_set();
+				cout<<"\n";
 			}
 			cout<<"\n";
 			return;
@@ -388,9 +389,10 @@ class Kway<T>::KImpl::Set{
 				cout<<" Empty ";
 			}
 			while(temp != NULL){
-				for(int i=0; i<blk_size_; i+= sizeof(T)){
+				for(int i=0; i<(blk_size_)/sizeof(T); i++){
 					cout<<" "<<*(T*)(&temp->data[i]);
 				}
+				cout<<"\n";
 				temp = temp->next;
 			}
 			return;
