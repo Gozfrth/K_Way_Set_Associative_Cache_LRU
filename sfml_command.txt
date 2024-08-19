@@ -1,2 +1,0 @@
-        g++ fib.cpp -lsfml-graphics -lsfml-window -lsfml-system -o fib_sfml
-

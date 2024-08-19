@@ -37,7 +37,7 @@ using namespace std;
 class CacheTest : public testing::Test{
 	protected:
 		// kway_cache (max_size, k, block_size) max and block size in bytes
-		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, true, 200, "cache_simulation"), kway_cache_small(4, 1){
+		CacheTest() : kway_cache_1(128, 2, 16), kway_cache_2(128, 1, 16), kway_cache_3(16, 1, 16), kway_cache_4(128, 4, 16), kway_cache_5(128, 4), kway_cache_large(ONE_MB, 4, 16, false, 200, "cache_simulation"), kway_cache_small(4, 1){
 		}
 
 		~CacheTest() override {
@@ -120,20 +120,25 @@ TEST_F(CacheTest, SmallSize){
 
 // TEST_4
 TEST_F(CacheTest, LargeSize){
-	kway_cache_large.initGraph("Large");
+	// IF YOU WANT TO GET DATAPOINTS IN CSV
+	// Make sure to terminateGraph after necessary operations
+
+	// kway_cache_large(ONE_MB, 4, 16, plot = false, 200, "cache_simulation"), change plot = true
+	// kway_cache_large.initGraph("Large"); 
+
 	int arr[1000000], i;
 
-        for(i =0; i<1000000; i++){
-                arr[i] = (rand()%ONE_MB); //random initialization
-        }
+	for(i =0; i<1000000; i++){
+		arr[i] = (rand()%ONE_MB); //random initialization
+	}
 
-        for(i=0; i<1000000; i++){
-                kway_cache_large.PutData(&arr[i]);
-        }
-        for(i=750000; i<1000000; i++){
-                ASSERT_NE(nullptr, kway_cache_large.GetData(&arr[i]));
-        }
-	kway_cache_large.terminateGraph();
+	for(i=0; i<1000000; i++){
+		kway_cache_large.PutData(&arr[i]);
+	}
+	for(i=750000; i<1000000; i++){
+		ASSERT_NE(nullptr, kway_cache_large.GetData(&arr[i]));
+	}
+	//kway_cache_large.terminateGraph();
 
 }
 // TEST_5
@@ -159,15 +164,15 @@ TEST_F(CacheTest, CacheLiterals){
 	// EXPECT_EQ((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
 
 	/*
-	for(i=0; i<64; i++){
-		if(kway_cache_4.GetData(i%32)==nullptr){
-			cout<<i%32<<endl;
-		};
-	}//64 hits
+	   for(i=0; i<64; i++){
+	   if(kway_cache_4.GetData(i%32)==nullptr){
+	   cout<<i%32<<endl;
+	   };
+	   }//64 hits
 
-	ASSERT_EQ(64, kway_cache_4.hit_count());
-	EXPECT_GT((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
-	*/
+	   ASSERT_EQ(64, kway_cache_4.hit_count());
+	   EXPECT_GT((double)(32*1000)/1e9, kway_cache_4.AMAT()); //maybe better to use EXPECT_GT
+	 */
 }
 
 
