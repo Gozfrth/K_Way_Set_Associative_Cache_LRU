@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-Run `make`
-and streamlit HOME.py
-=======
 # Thread-safe K-Way Set Associative Cache Simulation
 
 A C++ based K-Way Set Associative Cache Simulaton meant to simulate the behavior of a k-way set associative cache in a single/multi-threaded environment. It supports graphical visualizations of metrics like `Average Memory Access Time (AMAT)`,` miss ratio`, `miss count`, and `hit count`. There are a fair number of helper functions. The size of the cache is customizable and performance metrics can be seen using the graphs (or terminal output). It supports two execution methods—sequential and random— which enables to gather data points (stored as csv files) for comparision. The project is wrapped in a Python Streamlit interface for ease of use, providing a straight-forward and interactive way to visualize and understand cache performance under different configurations.
